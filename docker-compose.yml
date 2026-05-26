@@ -1,0 +1,25 @@
+services:
+  shopify-mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      PORT: "3000"
+      HOST: "0.0.0.0"
+      # HTTP access control — clients must send Authorization: Bearer <MCP_API_KEY>
+      MCP_API_KEY: "${MCP_API_KEY}"
+      # AES-256-GCM secret for OAuth token encryption (generate with: openssl rand -hex 32)
+      OAUTH_SECRET: "${OAUTH_SECRET}"
+      # @shopify/dev-mcp credentials — passed to the child process
+      SHOPIFY_FLAG_STORE: "${SHOPIFY_FLAG_STORE}"
+      SHOPIFY_ACCESS_TOKEN: "${SHOPIFY_ACCESS_TOKEN}"
+      SHOPIFY_CLI_PARTNERS_TOKEN: "${SHOPIFY_CLI_PARTNERS_TOKEN:-}"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
