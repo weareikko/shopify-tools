@@ -12,10 +12,12 @@ services:
       MCP_API_KEY: "${MCP_API_KEY}"
       # AES-256-GCM secret for OAuth token encryption (generate with: openssl rand -hex 32)
       OAUTH_SECRET: "${OAUTH_SECRET}"
-      # @shopify/dev-mcp credentials — passed to the child process
-      SHOPIFY_FLAG_STORE: "${SHOPIFY_FLAG_STORE}"
-      SHOPIFY_ACCESS_TOKEN: "${SHOPIFY_ACCESS_TOKEN}"
-      SHOPIFY_CLI_PARTNERS_TOKEN: "${SHOPIFY_CLI_PARTNERS_TOKEN:-}"
+      # No store credentials required — @shopify/dev-mcp works without them,
+      # exposing only dev-docs tools (learn_shopify_api, search_docs_chunks,
+      # validate_graphql_codeblocks, validate_component_codeblocks, validate_theme).
+      # Uncomment below only if you want store-management tools too:
+      # SHOPIFY_FLAG_STORE: "${SHOPIFY_FLAG_STORE}"
+      # SHOPIFY_ACCESS_TOKEN: "${SHOPIFY_ACCESS_TOKEN}"
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]

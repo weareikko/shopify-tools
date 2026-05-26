@@ -20,16 +20,17 @@ function makeTool(name: string): Tool {
 // ---------------------------------------------------------------------------
 
 describe('docsOnlyFilter', () => {
-  const docs = [
-    'search_dev_docs',
-    'introspect_admin_schema',
-    'validate_graphql_codeblocks',
-    'graphql_reference',
-    'get_api_reference',
+  // Exact tool names exposed by @shopify/dev-mcp v1.x without store credentials
+  const knownDocTools = [
+    'learn_shopify_api',
     'search_docs_chunks',
+    'validate_graphql_codeblocks',
+    'validate_component_codeblocks',
+    'validate_theme',
   ];
 
-  const store = [
+  // Hypothetical store tools that might appear if a store is configured
+  const hypotheticalStoreTools = [
     'get_product',
     'create_product',
     'update_product',
@@ -41,11 +42,11 @@ describe('docsOnlyFilter', () => {
     'get_shop_info',
   ];
 
-  it.each(docs)('passes %s', (name) => {
+  it.each(knownDocTools)('passes %s', (name) => {
     expect(docsOnlyFilter(makeTool(name))).toBe(true);
   });
 
-  it.each(store)('blocks %s', (name) => {
+  it.each(hypotheticalStoreTools)('blocks %s', (name) => {
     expect(docsOnlyFilter(makeTool(name))).toBe(false);
   });
 });

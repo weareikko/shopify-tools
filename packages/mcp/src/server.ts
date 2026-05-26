@@ -27,15 +27,21 @@
  *   OAUTH_SECRET       - AES-256-GCM key for OAuth token encryption.
  *                        Required in production. A weak default is used if unset.
  *
- *   --- @shopify/dev-mcp child process config ---
- *   SHOPIFY_FLAG_STORE       - Store hostname, e.g. my-store.myshopify.com
- *   SHOPIFY_ACCESS_TOKEN     - Admin API access token (shpat_...)
- *   SHOPIFY_CLI_PARTNERS_TOKEN - Partner API token
+ *   --- @shopify/dev-mcp child process ---
+ *   No store credentials are required. @shopify/dev-mcp exposes only developer
+ *   documentation and validation tools (learn_shopify_api, search_docs_chunks,
+ *   validate_graphql_codeblocks, validate_component_codeblocks, validate_theme)
+ *   without any Shopify store configuration.
+ *
+ *   If you DO configure a store (SHOPIFY_FLAG_STORE + SHOPIFY_ACCESS_TOKEN),
+ *   @shopify/dev-mcp may expose additional store-management tools dynamically.
+ *   Use SHOPIFY_MCP_DOCS_ONLY=true to filter those out if you only want docs.
  *
  *   --- Proxy tuning ---
  *   SHOPIFY_MCP_COMMAND    - Override the child command (default: npx)
  *   SHOPIFY_MCP_ARGS       - JSON array of args (default: ["--yes","@shopify/dev-mcp"])
  *   SHOPIFY_MCP_MAX_RETRIES - Max reconnect attempts (default: 10)
+ *   SHOPIFY_MCP_DOCS_ONLY  - 'true' → expose only docs/validation tools
  *
  * Usage:
  *   shopify-mcp-server

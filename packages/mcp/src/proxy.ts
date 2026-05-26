@@ -428,20 +428,34 @@ function parseCommaList(value: string): string[] {
 // ---------------------------------------------------------------------------
 
 /**
- * Expose only developer documentation and schema tools.
- * Hides all store-management tools (products, orders, customers, inventory, etc.).
+ * Expose only developer documentation and validation tools.
  *
- * Matched by tool name prefix/substring — works regardless of the exact names
- * @shopify/dev-mcp uses internally:
- *   - tools containing 'doc'   → docs search
- *   - tools containing 'schema'  → GraphQL schema introspection
- *   - tools containing 'introspect' → schema introspection
- *   - tools containing 'validate'   → GraphQL linting
- *   - tools containing 'reference'  → API reference
+ * Without store credentials @shopify/dev-mcp v1.x already exposes only these
+ * five tools (verified experimentally):
+ *   - learn_shopify_api
+ *   - search_docs_chunks
+ *   - validate_graphql_codeblocks
+ *   - validate_component_codeblocks
+ *   - validate_theme
  *
- * Run `SHOPIFY_MCP_DOCS_ONLY=true` to activate.
+ * If a store IS configured and @shopify/dev-mcp adds store-management tools
+ * dynamically (it advertises `tools.listChanged: true`), this filter will hide
+ * them so only the dev-docs surface is exposed.
+ *
+ * Activate with `SHOPIFY_MCP_DOCS_ONLY=true`.
  */
 export function docsOnlyFilter(tool: Tool): boolean {
+  // Exact names known from @shopify/dev-mcp v1.x without store credentials
+  const knownDocTools = new Set([
+    'learn_shopify_api',
+    'search_docs_chunks',
+    'validate_graphql_codeblocks',
+    'validate_component_codeblocks',
+    'validate_theme',
+  ]);
+  if (knownDocTools.has(tool.name)) return true;
+
+  // Fallback substring match for future tool additions that follow the same pattern
   const n = tool.name.toLowerCase();
   return (
     n.includes('doc') ||
@@ -450,7 +464,7 @@ export function docsOnlyFilter(tool: Tool): boolean {
     n.includes('validate') ||
     n.includes('reference') ||
     n.includes('search_dev') ||
-    n.includes('graphql_ref')
+    n.includes('learn_')
   );
 }
 
