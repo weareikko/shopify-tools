@@ -24,11 +24,11 @@
  * full list of supported variables.
  */
 
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
-import type { Tool } from '@modelcontextprotocol/sdk/types.js';
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 
-import { VERSION } from './version.ts';
+import { VERSION } from "./version.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -131,8 +131,8 @@ export class ShopifyProxy {
   private readonly toolFilter: ((tool: Tool) => boolean) | undefined;
 
   constructor(options: ShopifyProxyOptions = {}) {
-    this.command = options.command ?? 'npx';
-    this.args = options.args ?? ['--yes', '@shopify/dev-mcp'];
+    this.command = options.command ?? "npx";
+    this.args = options.args ?? ["--yes", "@shopify/dev-mcp"];
     this.env = options.env ?? {};
     this.maxRetries = options.maxRetries ?? 10;
     this.initialRetryDelayMs = options.initialRetryDelayMs ?? 1_000;
@@ -151,7 +151,7 @@ export class ShopifyProxy {
    */
   async connect(): Promise<void> {
     this.stopping = false;
-    await this._doConnect();
+    await this.doConnect();
   }
 
   /**
@@ -159,7 +159,7 @@ export class ShopifyProxy {
    */
   async disconnect(): Promise<void> {
     this.stopping = true;
-    await this._teardown();
+    await this.teardown();
   }
 
   // ---------------------------------------------------------------------------
@@ -171,9 +171,9 @@ export class ShopifyProxy {
    * Results are cached after the first call; the cache is invalidated on reconnect.
    */
   async listTools(): Promise<Tool[]> {
-    this._assertConnected();
+    this.assertConnected();
     if (!this.toolsCache) {
-      await this._refreshTools();
+      await this.refreshTools();
     }
     const all = this.toolsCache ?? [];
     return this.toolFilter ? all.filter(this.toolFilter) : all;
@@ -185,7 +185,7 @@ export class ShopifyProxy {
    * Safe to call concurrently — the SDK handles request ID correlation.
    */
   async callTool(name: string, args: Record<string, unknown>): Promise<unknown> {
-    this._assertConnected();
+    this.assertConnected();
 
     // Guard: reject calls to tools that were filtered out of listTools()
     if (this.toolFilter) {
@@ -216,15 +216,15 @@ export class ShopifyProxy {
   // Internal helpers
   // ---------------------------------------------------------------------------
 
-  private _assertConnected(): void {
+  private assertConnected(): void {
     if (!this.connected || !this.client) {
       throw new Error(
-        'ShopifyProxy is not connected. The @shopify/dev-mcp process may still be starting or has crashed.',
+        "ShopifyProxy is not connected. The @shopify/dev-mcp process may still be starting or has crashed.",
       );
     }
   }
 
-  private async _doConnect(): Promise<void> {
+  private async doConnect(): Promise<void> {
     // Build the child env: inherit everything from process.env, then overlay
     // any caller-supplied overrides. SHOPIFY_* variables in the parent env
     // are automatically included this way.
@@ -241,32 +241,35 @@ export class ShopifyProxy {
       env: childEnv,
       // Capture stderr so we can prefix it and forward to our own stderr.
       // Use 'inherit' if you want raw output; 'pipe' lets us annotate lines.
-      stderr: 'pipe',
+      stderr: "pipe",
     });
 
     // Forward annotated stderr from the child
     if (this.transport.stderr) {
-      this.transport.stderr.on('data', (chunk: Buffer) => {
-        for (const line of chunk.toString().split('\n')) {
+      this.transport.stderr.on("data", (chunk: Buffer) => {
+        for (const line of chunk.toString().split("\n")) {
           if (line.trim()) console.error(`[shopify-dev-mcp] ${line}`);
         }
       });
     }
 
-    // Reconnect when the child exits
+    // Reconnect when the child exits.
+    // MCP SDK transports use property assignment for lifecycle hooks, not EventEmitter.
+    // eslint-disable-next-line unicorn/prefer-add-event-listener
     this.transport.onclose = () => {
       if (this.stopping) return;
-      console.error('[proxy] @shopify/dev-mcp process closed unexpectedly.');
+      console.error("[proxy] @shopify/dev-mcp process closed unexpectedly.");
       this.connected = false;
-      this._scheduleReconnect();
+      this.scheduleReconnect();
     };
 
+    // eslint-disable-next-line unicorn/prefer-add-event-listener
     this.transport.onerror = (error: Error) => {
       console.error(`[proxy] Transport error: ${error.message}`);
     };
 
     this.client = new Client(
-      { name: 'shopify-mcp-proxy', version: VERSION },
+      { name: "shopify-mcp-proxy", version: VERSION },
       // Empty capabilities object — the Client will negotiate what the server
       // supports during the initialize handshake. We discover tools via listTools().
       { capabilities: {} },
@@ -280,23 +283,23 @@ export class ShopifyProxy {
     this.retryDelayMs = this.initialRetryDelayMs; // reset backoff
 
     // Pre-warm the tools cache so the first listTools() call is instant
-    await this._refreshTools();
+    await this.refreshTools();
 
     const all = this.toolsCache?.length ?? 0;
     const visible = this.toolFilter ? (this.toolsCache ?? []).filter(this.toolFilter).length : all;
-    const filterNote = this.toolFilter ? `, ${all - visible} hidden by filter` : '';
+    const filterNote = this.toolFilter ? `, ${all - visible} hidden by filter` : "";
     console.error(
       `[proxy] Connected to @shopify/dev-mcp (${visible} tool(s) available${filterNote})`,
     );
   }
 
-  private async _refreshTools(): Promise<void> {
+  private async refreshTools(): Promise<void> {
     if (!this.client) return;
     const result = await this.client.listTools();
     this.toolsCache = result.tools;
   }
 
-  private async _teardown(): Promise<void> {
+  private async teardown(): Promise<void> {
     this.connected = false;
     this.toolsCache = null;
 
@@ -312,7 +315,7 @@ export class ShopifyProxy {
     this.transport = null;
   }
 
-  private _scheduleReconnect(): void {
+  private scheduleReconnect(): void {
     if (this.stopping) return;
 
     if (this.retryCount >= this.maxRetries) {
@@ -334,11 +337,11 @@ export class ShopifyProxy {
     setTimeout(async () => {
       if (this.stopping) return;
       try {
-        await this._doConnect();
+        await this.doConnect();
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
         console.error(`[proxy] Reconnection attempt ${this.retryCount} failed: ${msg}`);
-        this._scheduleReconnect();
+        this.scheduleReconnect();
       }
     }, delay);
   }
@@ -368,17 +371,17 @@ export class ShopifyProxy {
  *   SHOPIFY_CLI_PARTNERS_TOKEN - Partner API token (for partner-level access)
  */
 export function createProxyFromEnv(): ShopifyProxy {
-  const command = process.env.SHOPIFY_MCP_COMMAND ?? 'npx';
+  const command = process.env.SHOPIFY_MCP_COMMAND ?? "npx";
 
-  let args: string[] = ['--yes', '@shopify/dev-mcp'];
+  let args: string[] = ["--yes", "@shopify/dev-mcp"];
   if (process.env.SHOPIFY_MCP_ARGS) {
     try {
       const parsed: unknown = JSON.parse(process.env.SHOPIFY_MCP_ARGS);
-      if (Array.isArray(parsed) && parsed.every((a) => typeof a === 'string')) {
+      if (Array.isArray(parsed) && parsed.every((a) => typeof a === "string")) {
         args = parsed as string[];
       }
     } catch {
-      console.warn('[proxy] SHOPIFY_MCP_ARGS is not valid JSON, using default args');
+      console.warn("[proxy] SHOPIFY_MCP_ARGS is not valid JSON, using default args");
     }
   }
 
@@ -398,18 +401,18 @@ export function createProxyFromEnv(): ShopifyProxy {
 function resolveToolFilterFromEnv(): ((tool: Tool) => boolean) | undefined {
   if (process.env.SHOPIFY_MCP_ALLOWED_TOOLS) {
     const names = parseCommaList(process.env.SHOPIFY_MCP_ALLOWED_TOOLS);
-    console.error(`[proxy] Tool filter: allow-list (${names.length} tools): ${names.join(', ')}`);
+    console.error(`[proxy] Tool filter: allow-list (${names.length} tools): ${names.join(", ")}`);
     return allowList(names);
   }
 
   if (process.env.SHOPIFY_MCP_BLOCKED_TOOLS) {
     const names = parseCommaList(process.env.SHOPIFY_MCP_BLOCKED_TOOLS);
-    console.error(`[proxy] Tool filter: block-list (${names.length} tools): ${names.join(', ')}`);
+    console.error(`[proxy] Tool filter: block-list (${names.length} tools): ${names.join(", ")}`);
     return blockList(names);
   }
 
-  if (process.env.SHOPIFY_MCP_DOCS_ONLY === 'true') {
-    console.error('[proxy] Tool filter: docs-only mode (store management tools hidden)');
+  if (process.env.SHOPIFY_MCP_DOCS_ONLY === "true") {
+    console.error("[proxy] Tool filter: docs-only mode (store management tools hidden)");
     return docsOnlyFilter;
   }
 
@@ -418,7 +421,7 @@ function resolveToolFilterFromEnv(): ((tool: Tool) => boolean) | undefined {
 
 function parseCommaList(value: string): string[] {
   return value
-    .split(',')
+    .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
 }
@@ -447,24 +450,24 @@ function parseCommaList(value: string): string[] {
 export function docsOnlyFilter(tool: Tool): boolean {
   // Exact names known from @shopify/dev-mcp v1.x without store credentials
   const knownDocTools = new Set([
-    'learn_shopify_api',
-    'search_docs_chunks',
-    'validate_graphql_codeblocks',
-    'validate_component_codeblocks',
-    'validate_theme',
+    "learn_shopify_api",
+    "search_docs_chunks",
+    "validate_graphql_codeblocks",
+    "validate_component_codeblocks",
+    "validate_theme",
   ]);
   if (knownDocTools.has(tool.name)) return true;
 
   // Fallback substring match for future tool additions that follow the same pattern
   const n = tool.name.toLowerCase();
   return (
-    n.includes('doc') ||
-    n.includes('schema') ||
-    n.includes('introspect') ||
-    n.includes('validate') ||
-    n.includes('reference') ||
-    n.includes('search_dev') ||
-    n.includes('learn_')
+    n.includes("doc") ||
+    n.includes("schema") ||
+    n.includes("introspect") ||
+    n.includes("validate") ||
+    n.includes("reference") ||
+    n.includes("search_dev") ||
+    n.includes("learn_")
   );
 }
 

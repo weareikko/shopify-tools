@@ -30,7 +30,7 @@ export function parseAuthHeader(header: string | undefined | null): AuthResult |
 
   // Auth disabled — anyone can connect (useful for internal/local deployments)
   if (!expectedKey) {
-    return { apiKey: '' };
+    return { apiKey: "" };
   }
 
   if (!header) return null;
@@ -48,7 +48,7 @@ export function parseAuthHeader(header: string | undefined | null): AuthResult |
 
   // Accept base64url-encoded API key (produced by the OAuth flow)
   try {
-    const decoded = Buffer.from(token, 'base64url').toString('utf-8');
+    const decoded = Buffer.from(token, "base64url").toString("utf-8");
     if (decoded === expectedKey) {
       return { apiKey: decoded };
     }
@@ -64,5 +64,5 @@ export function parseAuthHeader(header: string | undefined | null): AuthResult |
  * Stateless — the server only needs to decode and compare against MCP_API_KEY.
  */
 export function createAccessToken(apiKey: string): string {
-  return Buffer.from(apiKey).toString('base64url');
+  return Buffer.from(apiKey).toString("base64url");
 }

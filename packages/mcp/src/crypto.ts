@@ -5,9 +5,9 @@
  * server can stay completely stateless. Only OAUTH_SECRET is needed to decrypt.
  */
 
-import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from 'node:crypto';
+import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from "node:crypto";
 
-const ALGORITHM = 'aes-256-gcm';
+const ALGORITHM = "aes-256-gcm";
 const IV_LENGTH = 12;
 const AUTH_TAG_LENGTH = 16;
 const SALT_LENGTH = 16;
@@ -20,9 +20,9 @@ export function getSecret(): string {
   const secret = process.env.OAUTH_SECRET;
   if (!secret) {
     console.warn(
-      'WARNING: OAUTH_SECRET not set. Using default secret. Set OAUTH_SECRET in production!',
+      "WARNING: OAUTH_SECRET not set. Using default secret. Set OAUTH_SECRET in production!",
     );
-    return 'shopify-mcp-default-secret-change-me';
+    return "shopify-mcp-default-secret-change-me";
   }
   return secret;
 }
@@ -33,15 +33,15 @@ export function encrypt(plaintext: string, secret: string = getSecret()): string
   const iv = randomBytes(IV_LENGTH);
 
   const cipher = createCipheriv(ALGORITHM, key, iv);
-  const encrypted = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
+  const encrypted = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
   const authTag = cipher.getAuthTag();
 
-  return Buffer.concat([salt, iv, authTag, encrypted]).toString('base64url');
+  return Buffer.concat([salt, iv, authTag, encrypted]).toString("base64url");
 }
 
 export function decrypt(ciphertext: string, secret: string = getSecret()): string {
   try {
-    const combined = Buffer.from(ciphertext, 'base64url');
+    const combined = Buffer.from(ciphertext, "base64url");
     const salt = combined.subarray(0, SALT_LENGTH);
     const iv = combined.subarray(SALT_LENGTH, SALT_LENGTH + IV_LENGTH);
     const authTag = combined.subarray(
@@ -54,9 +54,9 @@ export function decrypt(ciphertext: string, secret: string = getSecret()): strin
     const decipher = createDecipheriv(ALGORITHM, key, iv, { authTagLength: AUTH_TAG_LENGTH });
     decipher.setAuthTag(authTag);
 
-    return Buffer.concat([decipher.update(encrypted), decipher.final()]).toString('utf8');
+    return Buffer.concat([decipher.update(encrypted), decipher.final()]).toString("utf8");
   } catch {
-    throw new Error('Decryption failed: invalid token or secret');
+    throw new Error("Decryption failed: invalid token or secret");
   }
 }
 
@@ -82,10 +82,10 @@ export function decodeAuthCode(code: string): AuthCodePayload {
   const payload = JSON.parse(decrypt(code)) as AuthCodePayload & { exp?: number };
 
   if (payload.exp && Date.now() > payload.exp) {
-    throw new Error('Authorization code expired');
+    throw new Error("Authorization code expired");
   }
   if (!payload.apiKey && process.env.MCP_API_KEY) {
-    throw new Error('Invalid authorization code: missing apiKey');
+    throw new Error("Invalid authorization code: missing apiKey");
   }
 
   return payload;

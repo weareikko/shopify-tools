@@ -14,20 +14,20 @@
  * - OAuth 2.1 endpoints handled by h3 (see oauth.ts)
  */
 
-import { randomUUID } from 'node:crypto';
-import type { IncomingMessage, ServerResponse } from 'node:http';
+import { randomUUID } from "node:crypto";
+import type { IncomingMessage, ServerResponse } from "node:http";
 
 // eslint-disable-next-line typescript-eslint/no-deprecated
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
   type CallToolResult,
-} from '@modelcontextprotocol/sdk/types.js';
-import { H3, defineEventHandler } from 'h3';
+} from "@modelcontextprotocol/sdk/types.js";
+import { H3, defineEventHandler } from "h3";
 
-import { parseAuthHeader } from './auth.ts';
+import { parseAuthHeader } from "./auth.ts";
 import {
   authorizeGetHandler,
   authorizePostHandler,
@@ -35,12 +35,12 @@ import {
   protectedResourceHandler,
   registerHandler,
   tokenHandler,
-} from './oauth.ts';
-import type { ShopifyProxy } from './proxy.ts';
-import { SessionManager } from './sessions.ts';
-import { VERSION } from './version.ts';
+} from "./oauth.ts";
+import type { ShopifyProxy } from "./proxy.ts";
+import { SessionManager } from "./sessions.ts";
+import { VERSION } from "./version.ts";
 
-export { SessionManager } from './sessions.ts';
+export { SessionManager } from "./sessions.ts";
 
 // ---------------------------------------------------------------------------
 // MCP Server factory — one per HTTP session
@@ -56,17 +56,17 @@ export { SessionManager } from './sessions.ts';
 function createMcpServer(proxy: ShopifyProxy): Server {
   // eslint-disable-next-line typescript-eslint/no-deprecated
   const server = new Server(
-    { name: 'shopify-mcp', version: VERSION },
+    { name: "shopify-mcp", version: VERSION },
     {
       capabilities: { tools: {} },
       instructions: [
-        'This server provides MCP access to a Shopify store via @shopify/dev-mcp.',
-        'Use the available tools to query and manage products, orders, customers,',
-        'inventory, discounts, collections, and more through the Shopify Admin API.',
-        '',
-        'All operations go through a pre-configured Shopify store.',
-        'Contact your administrator for store-level access or permissions.',
-      ].join('\n'),
+        "This server provides MCP access to a Shopify store via @shopify/dev-mcp.",
+        "Use the available tools to query and manage products, orders, customers,",
+        "inventory, discounts, collections, and more through the Shopify Admin API.",
+        "",
+        "All operations go through a pre-configured Shopify store.",
+        "Contact your administrator for store-level access or permissions.",
+      ].join("\n"),
     },
   );
 
@@ -77,7 +77,7 @@ function createMcpServer(proxy: ShopifyProxy): Server {
       return { tools };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      throw new Error(`Failed to list tools from @shopify/dev-mcp: ${message}`);
+      throw new Error(`Failed to list tools from @shopify/dev-mcp: ${message}`, { cause: error });
     }
   });
 
@@ -91,7 +91,7 @@ function createMcpServer(proxy: ShopifyProxy): Server {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       return {
-        content: [{ type: 'text' as const, text: `Error: ${message}` }],
+        content: [{ type: "text" as const, text: `Error: ${message}` }],
         structuredContent: { success: false, error: message },
         isError: true,
       };
@@ -126,23 +126,23 @@ export async function handleMcpRequest(
   const auth = parseAuthHeader(authHeader);
 
   if (!auth) {
-    const host = req.headers.host ?? 'localhost:3000';
-    const proto = req.headers['x-forwarded-proto'];
-    const protocol = (typeof proto === 'string' ? proto : undefined) ?? 'http';
+    const host = req.headers.host ?? "localhost:3000";
+    const proto = req.headers["x-forwarded-proto"];
+    const protocol = (typeof proto === "string" ? proto : undefined) ?? "http";
     const resourceMetadataUrl = `${protocol}://${host}/.well-known/oauth-protected-resource`;
 
     res.writeHead(401, {
-      'Content-Type': 'application/json',
-      'WWW-Authenticate': `Bearer resource_metadata="${resourceMetadataUrl}"`,
+      "Content-Type": "application/json",
+      "WWW-Authenticate": `Bearer resource_metadata="${resourceMetadataUrl}"`,
     });
     res.end(
       JSON.stringify({
-        jsonrpc: '2.0',
+        jsonrpc: "2.0",
         error: {
           code: -32001,
           message:
-            'Authentication required. Provide a Bearer token (MCP API key). ' +
-            'Visit /authorize to obtain an OAuth access token.',
+            "Authentication required. Provide a Bearer token (MCP API key). " +
+            "Visit /authorize to obtain an OAuth access token.",
         },
         id: null,
       }),
@@ -154,26 +154,26 @@ export async function handleMcpRequest(
   Object.assign(req, {
     auth: {
       token: auth.apiKey,
-      clientId: 'shopify-http-client',
-      scopes: ['shopify'],
+      clientId: "shopify-http-client",
+      scopes: ["shopify"],
       extra: {},
     },
   });
 
   // --- Session routing ---
-  const sessionHeader = req.headers['mcp-session-id'];
-  const sessionId = typeof sessionHeader === 'string' ? sessionHeader : undefined;
+  const sessionHeader = req.headers["mcp-session-id"];
+  const sessionId = typeof sessionHeader === "string" ? sessionHeader : undefined;
 
   if (sessionId) {
     const session = sessions.get(sessionId);
     if (!session) {
-      res.writeHead(404, { 'Content-Type': 'application/json' });
+      res.writeHead(404, { "Content-Type": "application/json" });
       res.end(
         JSON.stringify({
-          jsonrpc: '2.0',
+          jsonrpc: "2.0",
           error: {
             code: -32000,
-            message: 'Session not found. It may have expired or been terminated.',
+            message: "Session not found. It may have expired or been terminated.",
           },
           id: null,
         }),
@@ -233,33 +233,33 @@ export function createHealthApp(proxy: ShopifyProxy): H3 {
   const app = new H3();
 
   app.get(
-    '/',
+    "/",
     defineEventHandler(() => ({
-      status: 'ok',
-      service: 'shopify-mcp',
+      status: "ok",
+      service: "shopify-mcp",
       version: VERSION,
       proxy: proxy.status,
     })),
   );
 
   app.get(
-    '/health',
+    "/health",
     defineEventHandler(() => {
       const { connected } = proxy.status;
       return {
-        status: connected ? 'ok' : 'degraded',
+        status: connected ? "ok" : "degraded",
         proxy: proxy.status,
       };
     }),
   );
 
   // OAuth 2.1 endpoints (RFC 8414, RFC 9728, RFC 7591)
-  app.get('/.well-known/oauth-authorization-server', oauthMetadataHandler);
-  app.get('/.well-known/oauth-protected-resource', protectedResourceHandler);
-  app.post('/register', registerHandler);
-  app.get('/authorize', authorizeGetHandler);
-  app.post('/authorize', authorizePostHandler);
-  app.post('/token', tokenHandler);
+  app.get("/.well-known/oauth-authorization-server", oauthMetadataHandler);
+  app.get("/.well-known/oauth-protected-resource", protectedResourceHandler);
+  app.post("/register", registerHandler);
+  app.get("/authorize", authorizeGetHandler);
+  app.post("/authorize", authorizePostHandler);
+  app.post("/token", tokenHandler);
 
   return app;
 }

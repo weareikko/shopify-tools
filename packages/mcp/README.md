@@ -33,53 +33,53 @@ node packages/mcp/dist/server.js
 
 `@shopify/dev-mcp` v1.x exposes these tools **without any store credentials**:
 
-| Tool | Description |
-|---|---|
-| `learn_shopify_api` | Load documentation context for a Shopify API surface (Admin, Storefront, Functions, Liquid, Polaris, Hydrogen, …) |
-| `search_docs_chunks` | Search shopify.dev documentation |
-| `validate_graphql_codeblocks` | Validate GraphQL against Shopify schemas (Admin, Storefront, Partner, Functions, …) |
-| `validate_component_codeblocks` | Validate Polaris / UI extension component code |
-| `validate_theme` | Validate Liquid theme files |
+| Tool                            | Description                                                                                                       |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `learn_shopify_api`             | Load documentation context for a Shopify API surface (Admin, Storefront, Functions, Liquid, Polaris, Hydrogen, …) |
+| `search_docs_chunks`            | Search shopify.dev documentation                                                                                  |
+| `validate_graphql_codeblocks`   | Validate GraphQL against Shopify schemas (Admin, Storefront, Partner, Functions, …)                               |
+| `validate_component_codeblocks` | Validate Polaris / UI extension component code                                                                    |
+| `validate_theme`                | Validate Liquid theme files                                                                                       |
 
 No Shopify store or API credentials are needed for any of these.
 
 ## Environment variables
 
-| Variable | Required | Description |
-|---|---|---|
-| `MCP_API_KEY` | ✗ | Pre-shared key for HTTP access control. When unset, all connections are accepted (internal networks only). |
-| `OAUTH_SECRET` | ✗ (prod: ✓) | AES-256-GCM key for OAuth token encryption. |
-| `PORT` | ✗ | HTTP port (default: `3000`) |
-| `HOST` | ✗ | Bind address (default: `0.0.0.0`) |
+| Variable       | Required    | Description                                                                                                |
+| -------------- | ----------- | ---------------------------------------------------------------------------------------------------------- |
+| `MCP_API_KEY`  | ✗           | Pre-shared key for HTTP access control. When unset, all connections are accepted (internal networks only). |
+| `OAUTH_SECRET` | ✗ (prod: ✓) | AES-256-GCM key for OAuth token encryption.                                                                |
+| `PORT`         | ✗           | HTTP port (default: `3000`)                                                                                |
+| `HOST`         | ✗           | Bind address (default: `0.0.0.0`)                                                                          |
 
 ### Shopify store credentials (optional)
 
 Not required for dev-docs tools. Set only if you want store-management tools:
 
-| Variable | Description |
-|---|---|
-| `SHOPIFY_FLAG_STORE` | Store hostname, e.g. `my-store.myshopify.com` |
-| `SHOPIFY_ACCESS_TOKEN` | Admin API access token (`shpat_...`) |
+| Variable               | Description                                   |
+| ---------------------- | --------------------------------------------- |
+| `SHOPIFY_FLAG_STORE`   | Store hostname, e.g. `my-store.myshopify.com` |
+| `SHOPIFY_ACCESS_TOKEN` | Admin API access token (`shpat_...`)          |
 
 ### Proxy tuning
 
-| Variable | Default | Description |
-|---|---|---|
-| `SHOPIFY_MCP_COMMAND` | `npx` | Command to start the child |
-| `SHOPIFY_MCP_ARGS` | `["--yes","@shopify/dev-mcp"]` | JSON array of args |
-| `SHOPIFY_MCP_MAX_RETRIES` | `10` | Max reconnect attempts |
-| `SHOPIFY_MCP_DOCS_ONLY` | — | `true` → hide store tools if a store is configured |
+| Variable                  | Default                        | Description                                        |
+| ------------------------- | ------------------------------ | -------------------------------------------------- |
+| `SHOPIFY_MCP_COMMAND`     | `npx`                          | Command to start the child                         |
+| `SHOPIFY_MCP_ARGS`        | `["--yes","@shopify/dev-mcp"]` | JSON array of args                                 |
+| `SHOPIFY_MCP_MAX_RETRIES` | `10`                           | Max reconnect attempts                             |
+| `SHOPIFY_MCP_DOCS_ONLY`   | —                              | `true` → hide store tools if a store is configured |
 
 ## Endpoints
 
-| Method | Path | Description |
-|---|---|---|
-| POST/GET/DELETE | `/mcp` | MCP Streamable HTTP endpoint |
-| GET | `/health` | Health check (includes proxy status) |
-| GET | `/` | Service info |
-| GET | `/.well-known/oauth-authorization-server` | OAuth 2.1 metadata |
-| GET | `/authorize` | OAuth login form |
-| POST | `/token` | Token exchange |
+| Method          | Path                                      | Description                          |
+| --------------- | ----------------------------------------- | ------------------------------------ |
+| POST/GET/DELETE | `/mcp`                                    | MCP Streamable HTTP endpoint         |
+| GET             | `/health`                                 | Health check (includes proxy status) |
+| GET             | `/`                                       | Service info                         |
+| GET             | `/.well-known/oauth-authorization-server` | OAuth 2.1 metadata                   |
+| GET             | `/authorize`                              | OAuth login form                     |
+| POST            | `/token`                                  | Token exchange                       |
 
 ## Connecting from Claude Code
 

@@ -40,15 +40,15 @@ Shopify
 
 ## Environment variables
 
-| Variable | Description |
-|---|---|
-| `MCP_API_KEY` | Pre-shared key for HTTP access (unset = open) |
-| `OAUTH_SECRET` | AES-256-GCM key for OAuth tokens |
-| `PORT` / `HOST` | HTTP bind config |
-| `SHOPIFY_FLAG_STORE` | Store hostname (forwarded to child) |
-| `SHOPIFY_ACCESS_TOKEN` | Admin API token (forwarded to child) |
-| `SHOPIFY_MCP_COMMAND` | Command to start child (default: `npx`) |
-| `SHOPIFY_MCP_ARGS` | JSON array of args (default: `["--yes","@shopify/dev-mcp"]`) |
+| Variable               | Description                                                  |
+| ---------------------- | ------------------------------------------------------------ |
+| `MCP_API_KEY`          | Pre-shared key for HTTP access (unset = open)                |
+| `OAUTH_SECRET`         | AES-256-GCM key for OAuth tokens                             |
+| `PORT` / `HOST`        | HTTP bind config                                             |
+| `SHOPIFY_FLAG_STORE`   | Store hostname (forwarded to child)                          |
+| `SHOPIFY_ACCESS_TOKEN` | Admin API token (forwarded to child)                         |
+| `SHOPIFY_MCP_COMMAND`  | Command to start child (default: `npx`)                      |
+| `SHOPIFY_MCP_ARGS`     | JSON array of args (default: `["--yes","@shopify/dev-mcp"]`) |
 
 ## Conventions
 

@@ -14,15 +14,15 @@
  * When MCP_API_KEY is not set, any key is accepted (open access).
  */
 
-import { defineEventHandler, getQuery, readBody, type H3Event } from 'h3';
-import { createHash } from 'node:crypto';
+import { defineEventHandler, getQuery, readBody, type H3Event } from "h3";
+import { createHash } from "node:crypto";
 
-import { createAccessToken } from './auth.ts';
-import { createAuthCode, decodeAuthCode } from './crypto.ts';
+import { createAccessToken } from "./auth.ts";
+import { createAuthCode, decodeAuthCode } from "./crypto.ts";
 
 function baseUrl(event: H3Event): string {
-  const host = event.req.headers.get('host') ?? 'localhost:3000';
-  const proto = event.req.headers.get('x-forwarded-proto') ?? 'http';
+  const host = event.req.headers.get("host") ?? "localhost:3000";
+  const proto = event.req.headers.get("x-forwarded-proto") ?? "http";
   return `${proto}://${host}`;
 }
 
@@ -32,31 +32,31 @@ function baseUrl(event: H3Event): string {
 
 export const oauthMetadataHandler = defineEventHandler((event: H3Event) => {
   const url = baseUrl(event);
-  event.res.headers.set('Content-Type', 'application/json');
-  event.res.headers.set('Cache-Control', 'public, max-age=3600');
+  event.res.headers.set("Content-Type", "application/json");
+  event.res.headers.set("Cache-Control", "public, max-age=3600");
   return {
     issuer: url,
     authorization_endpoint: `${url}/authorize`,
     token_endpoint: `${url}/token`,
-    response_types_supported: ['code'],
-    grant_types_supported: ['authorization_code', 'refresh_token'],
-    code_challenge_methods_supported: ['S256'],
-    token_endpoint_auth_methods_supported: ['none'],
+    response_types_supported: ["code"],
+    grant_types_supported: ["authorization_code", "refresh_token"],
+    code_challenge_methods_supported: ["S256"],
+    token_endpoint_auth_methods_supported: ["none"],
     registration_endpoint: `${url}/register`,
-    scopes_supported: ['shopify'],
-    service_documentation: 'https://github.com/ikko-dev/shopify-tools',
+    scopes_supported: ["shopify"],
+    service_documentation: "https://github.com/ikko-dev/shopify-tools",
   };
 });
 
 export const protectedResourceHandler = defineEventHandler((event: H3Event) => {
   const url = baseUrl(event);
-  event.res.headers.set('Content-Type', 'application/json');
-  event.res.headers.set('Cache-Control', 'public, max-age=3600');
+  event.res.headers.set("Content-Type", "application/json");
+  event.res.headers.set("Cache-Control", "public, max-age=3600");
   return {
     resource: `${url}/mcp`,
     authorization_servers: [url],
-    bearer_methods_supported: ['header'],
-    scopes_supported: ['shopify'],
+    bearer_methods_supported: ["header"],
+    scopes_supported: ["shopify"],
   };
 });
 
@@ -65,28 +65,28 @@ export const protectedResourceHandler = defineEventHandler((event: H3Event) => {
 // ---------------------------------------------------------------------------
 
 export const registerHandler = defineEventHandler(async (event: H3Event) => {
-  event.res.headers.set('Content-Type', 'application/json');
+  event.res.headers.set("Content-Type", "application/json");
   let body: Record<string, unknown> = {};
   try {
     const raw = (await readBody(event)) as unknown;
-    body = typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>) : {};
+    body = typeof raw === "object" && raw !== null ? (raw as Record<string, unknown>) : {};
   } catch {
     event.res.status = 400;
-    return { error: 'invalid_request', error_description: 'Invalid JSON body' };
+    return { error: "invalid_request", error_description: "Invalid JSON body" };
   }
-  const clientName = typeof body.client_name === 'string' ? body.client_name : 'MCP Client';
+  const clientName = typeof body.client_name === "string" ? body.client_name : "MCP Client";
   const redirectUris = Array.isArray(body.redirect_uris) ? (body.redirect_uris as string[]) : [];
   const clientId = Buffer.from(JSON.stringify({ name: clientName, ts: Date.now() })).toString(
-    'base64url',
+    "base64url",
   );
   event.res.status = 201;
   return {
     client_id: clientId,
     client_name: clientName,
     redirect_uris: redirectUris,
-    token_endpoint_auth_method: 'none',
-    grant_types: ['authorization_code', 'refresh_token'],
-    response_types: ['code'],
+    token_endpoint_auth_method: "none",
+    grant_types: ["authorization_code", "refresh_token"],
+    response_types: ["code"],
   };
 });
 
@@ -96,31 +96,31 @@ export const registerHandler = defineEventHandler(async (event: H3Event) => {
 
 export const authorizeGetHandler = defineEventHandler((event: H3Event) => {
   const query = getQuery(event);
-  const redirectUri = String(query.redirect_uri ?? '');
-  const state = String(query.state ?? '');
-  const codeChallenge = String(query.code_challenge ?? '');
-  const codeChallengeMethod = String(query.code_challenge_method ?? '');
+  const redirectUri = String(query.redirect_uri ?? "");
+  const state = String(query.state ?? "");
+  const codeChallenge = String(query.code_challenge ?? "");
+  const codeChallengeMethod = String(query.code_challenge_method ?? "");
 
-  event.res.headers.set('Content-Type', 'text/html; charset=utf-8');
+  event.res.headers.set("Content-Type", "text/html; charset=utf-8");
 
   if (!redirectUri) {
     event.res.status = 400;
-    return renderErrorPage('Missing required parameter: redirect_uri');
+    return renderErrorPage("Missing required parameter: redirect_uri");
   }
 
   if (!codeChallenge) {
     const errorUrl = new URL(redirectUri);
-    errorUrl.searchParams.set('error', 'invalid_request');
-    errorUrl.searchParams.set('error_description', 'code_challenge is required (PKCE)');
-    if (state) errorUrl.searchParams.set('state', state);
+    errorUrl.searchParams.set("error", "invalid_request");
+    errorUrl.searchParams.set("error_description", "code_challenge is required (PKCE)");
+    if (state) errorUrl.searchParams.set("state", state);
     return Response.redirect(errorUrl.toString(), 302);
   }
 
-  if (codeChallengeMethod && codeChallengeMethod !== 'S256') {
+  if (codeChallengeMethod && codeChallengeMethod !== "S256") {
     const errorUrl = new URL(redirectUri);
-    errorUrl.searchParams.set('error', 'invalid_request');
-    errorUrl.searchParams.set('error_description', 'Only S256 code_challenge_method is supported');
-    if (state) errorUrl.searchParams.set('state', state);
+    errorUrl.searchParams.set("error", "invalid_request");
+    errorUrl.searchParams.set("error_description", "Only S256 code_challenge_method is supported");
+    if (state) errorUrl.searchParams.set("state", state);
     return Response.redirect(errorUrl.toString(), 302);
   }
 
@@ -128,7 +128,7 @@ export const authorizeGetHandler = defineEventHandler((event: H3Event) => {
     redirectUri,
     state,
     codeChallenge,
-    codeChallengeMethod: codeChallengeMethod || 'S256',
+    codeChallengeMethod: codeChallengeMethod || "S256",
   });
 });
 
@@ -136,31 +136,31 @@ export const authorizePostHandler = defineEventHandler(async (event: H3Event) =>
   const body = ((await readBody(event)) as Record<string, string>) ?? {};
   const { apiKey, redirectUri, state, codeChallenge, codeChallengeMethod } = body;
 
-  event.res.headers.set('Content-Type', 'text/html; charset=utf-8');
+  event.res.headers.set("Content-Type", "text/html; charset=utf-8");
 
   if (!redirectUri) {
     event.res.status = 400;
-    return renderErrorPage('Missing redirect_uri parameter');
+    return renderErrorPage("Missing redirect_uri parameter");
   }
 
   // Validate redirect_uri is https or localhost
   try {
     const uri = new URL(redirectUri);
-    const isLocalhost = uri.hostname === 'localhost' || uri.hostname === '127.0.0.1';
-    const isHttps = uri.protocol === 'https:';
+    const isLocalhost = uri.hostname === "localhost" || uri.hostname === "127.0.0.1";
+    const isHttps = uri.protocol === "https:";
     if (!isLocalhost && !isHttps) {
       event.res.status = 400;
-      return renderErrorPage('redirect_uri must be HTTPS or localhost');
+      return renderErrorPage("redirect_uri must be HTTPS or localhost");
     }
   } catch {
     event.res.status = 400;
-    return renderErrorPage('Invalid redirect_uri format');
+    return renderErrorPage("Invalid redirect_uri format");
   }
 
   const expectedKey = process.env.MCP_API_KEY;
 
   // If auth is disabled and no key provided, generate a dummy token
-  const effectiveKey = apiKey?.trim() || '';
+  const effectiveKey = apiKey?.trim() || "";
 
   if (expectedKey && effectiveKey !== expectedKey) {
     return renderLoginForm({
@@ -168,19 +168,19 @@ export const authorizePostHandler = defineEventHandler(async (event: H3Event) =>
       state,
       codeChallenge,
       codeChallengeMethod,
-      error: 'Invalid API key. Please check with your administrator.',
+      error: "Invalid API key. Please check with your administrator.",
     });
   }
 
   const code = createAuthCode({
     apiKey: effectiveKey,
     codeChallenge,
-    codeChallengeMethod: codeChallengeMethod || 'S256',
+    codeChallengeMethod: codeChallengeMethod || "S256",
   });
 
   const successUrl = new URL(redirectUri);
-  successUrl.searchParams.set('code', code);
-  if (state) successUrl.searchParams.set('state', state);
+  successUrl.searchParams.set("code", code);
+  if (state) successUrl.searchParams.set("state", state);
 
   return Response.redirect(successUrl.toString(), 302);
 });
@@ -190,54 +190,54 @@ export const authorizePostHandler = defineEventHandler(async (event: H3Event) =>
 // ---------------------------------------------------------------------------
 
 export const tokenHandler = defineEventHandler(async (event: H3Event) => {
-  event.res.headers.set('Content-Type', 'application/json');
+  event.res.headers.set("Content-Type", "application/json");
 
   let body: Record<string, string> = {};
   try {
     const raw = (await readBody(event)) as unknown;
     // readBody parses application/x-www-form-urlencoded and application/json
-    body = typeof raw === 'object' && raw !== null ? (raw as Record<string, string>) : {};
+    body = typeof raw === "object" && raw !== null ? (raw as Record<string, string>) : {};
   } catch {
     event.res.status = 400;
-    return { error: 'invalid_request', error_description: 'Invalid request body' };
+    return { error: "invalid_request", error_description: "Invalid request body" };
   }
 
   const { grant_type, code, code_verifier, refresh_token } = body;
 
   // Refresh token — we return a new access token with the same API key
-  if (grant_type === 'refresh_token') {
+  if (grant_type === "refresh_token") {
     if (!refresh_token) {
       event.res.status = 400;
-      return { error: 'invalid_request', error_description: 'Missing refresh_token' };
+      return { error: "invalid_request", error_description: "Missing refresh_token" };
     }
     try {
-      const apiKey = Buffer.from(refresh_token, 'base64url').toString('utf-8');
+      const apiKey = Buffer.from(refresh_token, "base64url").toString("utf-8");
       const accessToken = createAccessToken(apiKey);
       return {
         access_token: accessToken,
-        token_type: 'Bearer',
+        token_type: "Bearer",
         expires_in: 3600,
         refresh_token: refresh_token, // same refresh token
-        scope: 'shopify',
+        scope: "shopify",
       };
     } catch {
       event.res.status = 400;
-      return { error: 'invalid_grant', error_description: 'Invalid refresh_token' };
+      return { error: "invalid_grant", error_description: "Invalid refresh_token" };
     }
   }
 
   // Authorization code exchange
-  if (grant_type !== 'authorization_code') {
+  if (grant_type !== "authorization_code") {
     event.res.status = 400;
     return {
-      error: 'unsupported_grant_type',
-      error_description: 'Only authorization_code and refresh_token are supported',
+      error: "unsupported_grant_type",
+      error_description: "Only authorization_code and refresh_token are supported",
     };
   }
 
   if (!code || !code_verifier) {
     event.res.status = 400;
-    return { error: 'invalid_request', error_description: 'Missing code or code_verifier' };
+    return { error: "invalid_request", error_description: "Missing code or code_verifier" };
   }
 
   let payload: { apiKey: string; codeChallenge?: string; codeChallengeMethod?: string };
@@ -245,31 +245,29 @@ export const tokenHandler = defineEventHandler(async (event: H3Event) => {
     payload = decodeAuthCode(code);
   } catch (err) {
     event.res.status = 400;
-    const msg = err instanceof Error ? err.message : 'Invalid authorization code';
-    return { error: 'invalid_grant', error_description: msg };
+    const msg = err instanceof Error ? err.message : "Invalid authorization code";
+    return { error: "invalid_grant", error_description: msg };
   }
 
   // Verify PKCE code_verifier
   if (payload.codeChallenge) {
-    const verifierHash = createHash('sha256')
-      .update(code_verifier)
-      .digest('base64url');
+    const verifierHash = createHash("sha256").update(code_verifier).digest("base64url");
     if (verifierHash !== payload.codeChallenge) {
       event.res.status = 400;
-      return { error: 'invalid_grant', error_description: 'PKCE code_verifier mismatch' };
+      return { error: "invalid_grant", error_description: "PKCE code_verifier mismatch" };
     }
   }
 
   const accessToken = createAccessToken(payload.apiKey);
   // Use the access token itself as the refresh token (stateless)
-  const refreshToken = Buffer.from(payload.apiKey).toString('base64url');
+  const refreshToken = Buffer.from(payload.apiKey).toString("base64url");
 
   return {
     access_token: accessToken,
-    token_type: 'Bearer',
+    token_type: "Bearer",
     expires_in: 3600,
     refresh_token: refreshToken,
-    scope: 'shopify',
+    scope: "shopify",
   };
 });
 
@@ -410,19 +408,19 @@ function renderLoginForm(params: LoginFormParams): string {
       <code>@shopify/dev-mcp</code>.
     </p>
 
-    ${error ? `<div class="error">${htmlEscape(error)}</div>` : ''}
+    ${error ? `<div class="error">${htmlEscape(error)}</div>` : ""}
 
     ${
       authDisabled
         ? '<div class="open-notice">ℹ️ This server has no API key configured — click Connect to proceed.</div>'
-        : ''
+        : ""
     }
 
     <form method="POST" action="/authorize">
       <input type="hidden" name="redirectUri" value="${htmlEscape(redirectUri)}">
-      <input type="hidden" name="state" value="${htmlEscape(state ?? '')}">
-      <input type="hidden" name="codeChallenge" value="${htmlEscape(codeChallenge ?? '')}">
-      <input type="hidden" name="codeChallengeMethod" value="${htmlEscape(codeChallengeMethod ?? 'S256')}">
+      <input type="hidden" name="state" value="${htmlEscape(state ?? "")}">
+      <input type="hidden" name="codeChallenge" value="${htmlEscape(codeChallenge ?? "")}">
+      <input type="hidden" name="codeChallengeMethod" value="${htmlEscape(codeChallengeMethod ?? "S256")}">
 
       ${
         !authDisabled
@@ -452,9 +450,9 @@ function renderLoginForm(params: LoginFormParams): string {
 
 function htmlEscape(s: string): string {
   return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
 }

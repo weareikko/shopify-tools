@@ -4,8 +4,8 @@ Org-wide Shopify MCP server — wraps [`@shopify/dev-mcp`](https://www.npmjs.com
 
 ## Packages
 
-| Package | Description |
-|---|---|
+| Package                        | Description           |
+| ------------------------------ | --------------------- |
 | [`packages/mcp`](packages/mcp) | HTTP MCP proxy server |
 
 ## Quick start

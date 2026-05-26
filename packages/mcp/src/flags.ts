@@ -3,5 +3,5 @@
  */
 
 export function parseReadOnlyFlag(): boolean {
-  return process.argv.includes('--read-only') || process.env.SHOPIFY_MCP_READ_ONLY === 'true';
+  return process.argv.includes("--read-only") || process.env.SHOPIFY_MCP_READ_ONLY === "true";
 }

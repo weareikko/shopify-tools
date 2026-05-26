@@ -9,8 +9,8 @@
  */
 
 // eslint-disable-next-line typescript-eslint/no-deprecated
-import type { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import type { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import type { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 
 export interface ManagedSession {
   transport: StreamableHTTPServerTransport;

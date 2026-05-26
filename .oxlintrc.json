@@ -1,0 +1,21 @@
+{
+  "$schema": "https://raw.githubusercontent.com/nicolo-ribaudo/oxc/refs/heads/oxlintrc-schema/npm/oxlint/configuration_schema.json",
+  "categories": {
+    "correctness": "error",
+    "suspicious": "warn",
+    "perf": "warn"
+  },
+  "rules": {
+    "no-throw-literal": "warn",
+    "no-promise-executor-return": "warn",
+    "unicorn/no-useless-undefined": "warn",
+    "unicorn/prefer-regexp-test": "warn",
+    "unicorn/prefer-string-replace-all": "warn",
+    "typescript/no-floating-promises": "warn",
+
+    "no-await-in-loop": "off",
+    "unicorn/consistent-function-scoping": "off",
+    "no-underscore-dangle": ["warn", { "allow": ["__dirname", "__filename", "__VERSION__"] }]
+  },
+  "ignorePatterns": ["dist", "coverage", "node_modules"]
+}
