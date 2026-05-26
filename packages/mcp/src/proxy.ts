@@ -79,11 +79,32 @@ export interface ShopifyProxyOptions {
 
   /** Hard cap on reconnect delay in ms. Default: 30 000 */
   maxRetryDelayMs?: number;
+
+  /**
+   * Optional filter applied to every tool returned by @shopify/dev-mcp.
+   *
+   * Return `true` to expose the tool, `false` to hide it.
+   * Filtered tools are invisible to HTTP clients AND calls to them are blocked
+   * with a clear error (prevents bypassing via direct JSON-RPC).
+   *
+   * Use the built-in `docsOnlyFilter` or build your own from `allowList` /
+   * `blockList` helpers exported below.
+   *
+   * @example — docs & schema only
+   *   import { docsOnlyFilter } from './proxy.ts';
+   *   new ShopifyProxy({ toolFilter: docsOnlyFilter })
+   *
+   * @example — custom allowlist
+   *   import { allowList } from './proxy.ts';
+   *   new ShopifyProxy({ toolFilter: allowList(['search_dev_docs', 'introspect_admin_schema']) })
+   */
+  toolFilter?: (tool: Tool) => boolean;
 }
 
 export interface ProxyStatus {
   connected: boolean;
   toolCount: number;
+  filteredToolCount: number;
   retryCount: number;
 }
 
@@ -107,6 +128,7 @@ export class ShopifyProxy {
   private readonly maxRetries: number;
   private readonly maxRetryDelayMs: number;
   private readonly initialRetryDelayMs: number;
+  private readonly toolFilter: ((tool: Tool) => boolean) | undefined;
 
   constructor(options: ShopifyProxyOptions = {}) {
     this.command = options.command ?? 'npx';
@@ -116,6 +138,7 @@ export class ShopifyProxy {
     this.initialRetryDelayMs = options.initialRetryDelayMs ?? 1_000;
     this.maxRetryDelayMs = options.maxRetryDelayMs ?? 30_000;
     this.retryDelayMs = this.initialRetryDelayMs;
+    this.toolFilter = options.toolFilter;
   }
 
   // ---------------------------------------------------------------------------
@@ -144,7 +167,7 @@ export class ShopifyProxy {
   // ---------------------------------------------------------------------------
 
   /**
-   * Return the tool list from @shopify/dev-mcp.
+   * Return the (filtered) tool list from @shopify/dev-mcp.
    * Results are cached after the first call; the cache is invalidated on reconnect.
    */
   async listTools(): Promise<Tool[]> {
@@ -152,23 +175,39 @@ export class ShopifyProxy {
     if (!this.toolsCache) {
       await this._refreshTools();
     }
-    return this.toolsCache ?? [];
+    const all = this.toolsCache ?? [];
+    return this.toolFilter ? all.filter(this.toolFilter) : all;
   }
 
   /**
    * Call a tool on @shopify/dev-mcp and return its result.
+   * Calls to filtered-out tools are rejected before reaching the child process.
    * Safe to call concurrently — the SDK handles request ID correlation.
    */
   async callTool(name: string, args: Record<string, unknown>): Promise<unknown> {
     this._assertConnected();
+
+    // Guard: reject calls to tools that were filtered out of listTools()
+    if (this.toolFilter) {
+      const tool = (this.toolsCache ?? []).find((t) => t.name === name);
+      if (tool && !this.toolFilter(tool)) {
+        throw new Error(
+          `Tool "${name}" is not available on this server (disabled by server policy).`,
+        );
+      }
+    }
+
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- asserted above
     return this.client!.callTool({ name, arguments: args });
   }
 
   get status(): ProxyStatus {
+    const all = this.toolsCache ?? [];
+    const visible = this.toolFilter ? all.filter(this.toolFilter) : all;
     return {
       connected: this.connected,
-      toolCount: this.toolsCache?.length ?? 0,
+      toolCount: visible.length,
+      filteredToolCount: all.length - visible.length,
       retryCount: this.retryCount,
     };
   }
@@ -243,8 +282,11 @@ export class ShopifyProxy {
     // Pre-warm the tools cache so the first listTools() call is instant
     await this._refreshTools();
 
+    const all = this.toolsCache?.length ?? 0;
+    const visible = this.toolFilter ? (this.toolsCache ?? []).filter(this.toolFilter).length : all;
+    const filterNote = this.toolFilter ? `, ${all - visible} hidden by filter` : '';
     console.error(
-      `[proxy] Connected to @shopify/dev-mcp (${this.toolsCache?.length ?? 0} tool(s) available)`,
+      `[proxy] Connected to @shopify/dev-mcp (${visible} tool(s) available${filterNote})`,
     );
   }
 
@@ -310,14 +352,19 @@ export class ShopifyProxy {
  * Build proxy options from environment variables.
  *
  * Environment variables:
- *   SHOPIFY_MCP_COMMAND    - Override the command (default: 'npx')
- *   SHOPIFY_MCP_ARGS       - JSON array of args (default: '["--yes","@shopify/dev-mcp"]')
- *   SHOPIFY_MCP_MAX_RETRIES - Max reconnect attempts (default: 10)
+ *   SHOPIFY_MCP_COMMAND       - Override the command (default: 'npx')
+ *   SHOPIFY_MCP_ARGS          - JSON array of args (default: '["--yes","@shopify/dev-mcp"]')
+ *   SHOPIFY_MCP_MAX_RETRIES   - Max reconnect attempts (default: 10)
+ *   SHOPIFY_MCP_DOCS_ONLY     - 'true' → expose only developer docs / schema tools
+ *   SHOPIFY_MCP_ALLOWED_TOOLS - Comma-separated exact tool names to expose
+ *                               (overrides SHOPIFY_MCP_DOCS_ONLY)
+ *   SHOPIFY_MCP_BLOCKED_TOOLS - Comma-separated exact tool names to hide
+ *                               (cannot be combined with ALLOWED_TOOLS)
  *
  * Shopify credentials are read from the environment automatically (process.env
  * is fully inherited by the child). Key variables for @shopify/dev-mcp:
- *   SHOPIFY_FLAG_STORE       - Store hostname, e.g. my-store.myshopify.com
- *   SHOPIFY_ACCESS_TOKEN     - Admin API access token (shpat_...)
+ *   SHOPIFY_FLAG_STORE         - Store hostname, e.g. my-store.myshopify.com
+ *   SHOPIFY_ACCESS_TOKEN       - Admin API access token (shpat_...)
  *   SHOPIFY_CLI_PARTNERS_TOKEN - Partner API token (for partner-level access)
  */
 export function createProxyFromEnv(): ShopifyProxy {
@@ -339,5 +386,94 @@ export function createProxyFromEnv(): ShopifyProxy {
     ? Number.parseInt(process.env.SHOPIFY_MCP_MAX_RETRIES, 10)
     : undefined;
 
-  return new ShopifyProxy({ command, args, maxRetries });
+  const toolFilter = resolveToolFilterFromEnv();
+
+  return new ShopifyProxy({ command, args, maxRetries, toolFilter });
+}
+
+/**
+ * Resolve the tool filter from environment variables.
+ * Priority: SHOPIFY_MCP_ALLOWED_TOOLS > SHOPIFY_MCP_BLOCKED_TOOLS > SHOPIFY_MCP_DOCS_ONLY
+ */
+function resolveToolFilterFromEnv(): ((tool: Tool) => boolean) | undefined {
+  if (process.env.SHOPIFY_MCP_ALLOWED_TOOLS) {
+    const names = parseCommaList(process.env.SHOPIFY_MCP_ALLOWED_TOOLS);
+    console.error(`[proxy] Tool filter: allow-list (${names.length} tools): ${names.join(', ')}`);
+    return allowList(names);
+  }
+
+  if (process.env.SHOPIFY_MCP_BLOCKED_TOOLS) {
+    const names = parseCommaList(process.env.SHOPIFY_MCP_BLOCKED_TOOLS);
+    console.error(`[proxy] Tool filter: block-list (${names.length} tools): ${names.join(', ')}`);
+    return blockList(names);
+  }
+
+  if (process.env.SHOPIFY_MCP_DOCS_ONLY === 'true') {
+    console.error('[proxy] Tool filter: docs-only mode (store management tools hidden)');
+    return docsOnlyFilter;
+  }
+
+  return undefined;
+}
+
+function parseCommaList(value: string): string[] {
+  return value
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+// ---------------------------------------------------------------------------
+// Built-in filter helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Expose only developer documentation and schema tools.
+ * Hides all store-management tools (products, orders, customers, inventory, etc.).
+ *
+ * Matched by tool name prefix/substring — works regardless of the exact names
+ * @shopify/dev-mcp uses internally:
+ *   - tools containing 'doc'   → docs search
+ *   - tools containing 'schema'  → GraphQL schema introspection
+ *   - tools containing 'introspect' → schema introspection
+ *   - tools containing 'validate'   → GraphQL linting
+ *   - tools containing 'reference'  → API reference
+ *
+ * Run `SHOPIFY_MCP_DOCS_ONLY=true` to activate.
+ */
+export function docsOnlyFilter(tool: Tool): boolean {
+  const n = tool.name.toLowerCase();
+  return (
+    n.includes('doc') ||
+    n.includes('schema') ||
+    n.includes('introspect') ||
+    n.includes('validate') ||
+    n.includes('reference') ||
+    n.includes('search_dev') ||
+    n.includes('graphql_ref')
+  );
+}
+
+/**
+ * Create a filter that exposes only the named tools.
+ * Any tool not in the list is hidden and its calls are blocked.
+ *
+ * @example
+ *   allowList(['search_dev_docs', 'introspect_admin_schema'])
+ */
+export function allowList(names: string[]): (tool: Tool) => boolean {
+  const set = new Set(names);
+  return (tool) => set.has(tool.name);
+}
+
+/**
+ * Create a filter that hides the named tools.
+ * Everything else passes through.
+ *
+ * @example
+ *   blockList(['create_product', 'delete_order'])
+ */
+export function blockList(names: string[]): (tool: Tool) => boolean {
+  const set = new Set(names);
+  return (tool) => !set.has(tool.name);
 }
