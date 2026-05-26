@@ -15,5 +15,13 @@ export default defineConfig({
       // @shopify/dev-mcp is a peer dep — spawned as a child process, not imported
     ],
   }),
-  test: createTestConfig({ name: 'mcp' }),
+  test: {
+    ...createTestConfig({ name: 'mcp' }),
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'lcov', 'json-summary'],
+      include: ['src/**/*.ts'],
+      exclude: ['src/**/*.test.ts', 'src/server.ts'],
+    },
+  },
 });
