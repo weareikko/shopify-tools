@@ -57,3 +57,17 @@ Shopify
 - oxlint + oxfmt for linting/formatting
 - `.ts` extensions in imports (requires `allowImportingTsExtensions: true`)
 - Commit format: conventional commits (`feat:`, `fix:`, `chore:`, etc.)
+
+## Changelog
+
+- **Never edit `CHANGELOG.md` directly.** Each PR adds a fragment `.changelog/<slug>.md` (slug = branch name without its prefix, e.g. `feature/tool-filter` → `tool-filter.md`)
+- A fragment only contains `### Added|Changed|Deprecated|Removed|Fixed|Security|Dependencies` headings, each followed by its entries — no `#`/`##`/`####` heading
+- **Do not write the PR number**: the release appends `[[#N]]` and the link definition from the merged PR that added the fragment
+- One entry per line, no hard wrap
+- The `Changelog` check fails when a PR changes `packages/**` or `Dockerfile` without a fragment; set the `no-changelog` label for changes users do not see (tests, refactors, tooling)
+- Format and tooling: [`weareikko/changelog`](https://github.com/weareikko/changelog)
+
+## Releases
+
+- Do not bump versions, tag or create GitHub releases manually. Run the `Release` workflow (`.github/workflows/publish.yml`) on `main`: `gh workflow run publish.yml -f version=patch` (or `minor`, `major`, `prerelease -f preid=beta`, or an exact version such as `0.1.0`)
+- It runs the checks, bumps the root and `packages/mcp` versions, folds `.changelog/` into `CHANGELOG.md`, commits `chore: release <version>`, tags `<version>` (no `v` prefix), publishes to npm (`next` dist-tag for alpha/beta/rc) and creates the GitHub release with the changelog section as body

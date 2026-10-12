@@ -74,3 +74,13 @@ npm run typecheck
 npm run lint
 npm run format
 ```
+
+## Changelog and releases
+
+Do not edit `CHANGELOG.md`. Each pull request adds a fragment in `.changelog/<slug>.md` with `###` Keep a Changelog sections, without the pull request number (the release adds it). A pull request that changes `packages/` or the `Dockerfile` needs a fragment, unless it has the `no-changelog` label. See [`weareikko/changelog`](https://github.com/weareikko/changelog) for the format.
+
+Maintainers release with the `Release` workflow, which runs the checks, bumps the version, folds the fragments into `CHANGELOG.md`, tags, publishes to npm and creates the GitHub release:
+
+```bash
+gh workflow run publish.yml -f version=patch   # or minor, major, prerelease, or an exact version such as 0.1.0
+```
